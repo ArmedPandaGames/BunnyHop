@@ -685,6 +685,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   motor: {fileID: 852127370}
+  root: {fileID: 1060663473}
   cameraTarget: {fileID: 1300621147}
   walkSpeed: 20
   crouchSpeed: 7
@@ -692,6 +693,8 @@ MonoBehaviour:
   gravity: -90
   standHeight: 2
   crouchHeight: 1
+  standCameraTargetHeight: 0.9
+  crouchCameraTargetHeight: 0.7
 --- !u!114 &852127370
 MonoBehaviour:
   m_ObjectHideFlags: 0

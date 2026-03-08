@@ -24,16 +24,20 @@ public struct CharacterInput
 public class PlayerCharacter : MonoBehaviour, ICharacterController
 {
     [SerializeField] private KinematicCharacterMotor motor;
+    [SerializeField] private Transform root;
     [SerializeField] private Transform cameraTarget;
     [Space]
     [SerializeField] private float walkSpeed = 20f;
     [SerializeField] private float crouchSpeed = 7f;
+    [SerializeField] private float walkResponse = 25f; //how quickly the character accelerates and decelerates to changes in movement input
+    [SerializeField] private float crouchResponse = 20f; //how quickly the character accelerates and decelerates to changes in movement input while crouching. Generally should be lower than walkResponse to feel better to crouch
     [Space]
     [SerializeField] private float jumpSpeed = 20f;
     [SerializeField] private float gravity = -90f;
     [Space]
     [SerializeField] private float standHeight = 2f;
     [SerializeField] private float crouchHeight = 1f;
+    [SerializeField] private float crouchHeightResponse = 15f; //how quickly the character capsule changes height when crouching/uncrouching
     [Range(0f, 1f)]
     [SerializeField] private float standCameraTargetHeight = 0.9f;
     [Range(0f, 1f)]
@@ -43,10 +47,12 @@ public class PlayerCharacter : MonoBehaviour, ICharacterController
     private Vector3 _requestedMovement;
     private bool _requestedJump;
     private bool _requestedCrouch;
+    private Collider[] _uncrouchOverlapResults;
 
     public void Initialize()
     {
         _stance = Stance.Stand;
+        _uncrouchOverlapResults = new Collider[8];
         motor.CharacterController = this;
 
     }
@@ -73,6 +79,25 @@ public class PlayerCharacter : MonoBehaviour, ICharacterController
         };
     }
 
+    public void UpdateBody(float deltaTime)
+    {
+        var currentHeight = motor.Capsule.height;
+        var normalizedHeight = currentHeight / standHeight;
+        var cameraTargetHeight = currentHeight * (
+            _stance is Stance.Stand ? standCameraTargetHeight : crouchCameraTargetHeight
+        );
+        var rootTargetScale = new Vector3(1f, normalizedHeight, 1f);
+        cameraTarget.localPosition = Vector3.Lerp(
+            a: cameraTarget.localPosition,
+            b: new Vector3(0f, cameraTargetHeight, 0f),
+            t: 1f - Mathf.Exp(-crouchHeightResponse * deltaTime)
+        );
+        root.localScale = Vector3.Lerp(
+            a: root.localScale,
+            b: rootTargetScale,
+            t: 1f - Mathf.Exp(-crouchHeightResponse * deltaTime)
+        );
+    }
     public void UpdateVelocity(ref Vector3 currentVelocity, float deltaTime)
     {
         if (motor.GroundingStatus.IsStableOnGround)
@@ -83,10 +108,16 @@ public class PlayerCharacter : MonoBehaviour, ICharacterController
                 direction: _requestedMovement,
                 surfaceNormal: motor.GroundingStatus.GroundNormal
             ) * _requestedMovement.magnitude;
-
+            //calculate target velocity based on move speed, then smooth towards it based on acceleration speed
             var speed = _stance is Stance.Stand ? walkSpeed : crouchSpeed;
+            var response = _stance is Stance.Stand ? walkResponse : crouchResponse;
             // and move along the ground in that direction
-            currentVelocity = groundedMovement * speed;
+            var targetVelocity = groundedMovement * speed;
+            currentVelocity = Vector3.Lerp(
+                a: currentVelocity,
+                b: targetVelocity,
+                t: 1f - Mathf.Exp(-response * deltaTime)
+                );
         }
         else //else in the air
         {
@@ -143,8 +174,22 @@ public class PlayerCharacter : MonoBehaviour, ICharacterController
         //uncrouch
         if (!_requestedCrouch && _stance is not Stance.Stand)
         {
-            _stance = Stance.Stand;
+            // tentatively stand up the character capsule
             motor.SetCapsuleDimensions(height: standHeight, radius: motor.Capsule.radius, yOffset: standHeight * 0.5f);
+            //then see if that would cause a collision with anything
+            var pos = motor.TransientPosition;
+            var rot = motor.TransientRotation;
+            var mask = motor.CollidableLayers;
+            if (motor.CharacterOverlap(pos, rot, _uncrouchOverlapResults, mask, QueryTriggerInteraction.Ignore) > 0)
+            {
+                //if there was a collision, crouch back down
+                motor.SetCapsuleDimensions(height: crouchHeight, radius: motor.Capsule.radius, yOffset: crouchHeight * 0.5f);
+            }
+            else
+            {
+                //if there was no collision, finalize standing up
+                _stance = Stance.Stand;
+            }
         }
     }
 
