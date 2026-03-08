@@ -249,4 +249,11 @@ public class PlayerCharacter : MonoBehaviour, ICharacterController
     }
 
     public Transform GetCameraTarget() => cameraTarget;
+
+    public void SetPosition(Vector3 position, bool killVelocity = true)
+    {
+        motor.SetPosition(position);
+        if (killVelocity)
+            motor.BaseVelocity = Vector3.zero;
+    }
 }
