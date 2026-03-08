@@ -18,6 +18,7 @@ public struct CharacterInput
     public Quaternion Rotation;
     public Vector2 Move;
     public bool Jump;
+    public bool JumpSustain;
     public CrouchInput Crouch;
 }
 
@@ -31,8 +32,12 @@ public class PlayerCharacter : MonoBehaviour, ICharacterController
     [SerializeField] private float crouchSpeed = 7f;
     [SerializeField] private float walkResponse = 25f; //how quickly the character accelerates and decelerates to changes in movement input
     [SerializeField] private float crouchResponse = 20f; //how quickly the character accelerates and decelerates to changes in movement input while crouching. Generally should be lower than walkResponse to feel better to crouch
+    [SerializeField] private float airSpeed = 15f;
+    [SerializeField] private float airAcceleration = 70f;
     [Space]
     [SerializeField] private float jumpSpeed = 20f;
+    [Range(0f, 1f)]
+    [SerializeField] private float jumpSustainGravity = 0.4f;
     [SerializeField] private float gravity = -90f;
     [Space]
     [SerializeField] private float standHeight = 2f;
@@ -46,6 +51,7 @@ public class PlayerCharacter : MonoBehaviour, ICharacterController
     private Quaternion _requestedRotation;
     private Vector3 _requestedMovement;
     private bool _requestedJump;
+    private bool _requestedSustainedJump;
     private bool _requestedCrouch;
     private Collider[] _uncrouchOverlapResults;
 
@@ -68,6 +74,7 @@ public class PlayerCharacter : MonoBehaviour, ICharacterController
         //orient the input so its relative to the direction the player is facing
         _requestedMovement = input.Rotation * _requestedMovement;
         _requestedJump = _requestedJump || input.Jump;
+        _requestedSustainedJump = input.JumpSustain;
         _requestedCrouch = input.Crouch switch
         {
             CrouchInput.Toggle => !_requestedCrouch,
@@ -121,8 +128,37 @@ public class PlayerCharacter : MonoBehaviour, ICharacterController
         }
         else //else in the air
         {
+            //move
+            if (_requestedMovement.sqrMagnitude > 0f)
+            {
+                //requested movement projected onto movement plane
+                var planarMovement = Vector3.ProjectOnPlane(
+                    vector: _requestedMovement,
+                    planeNormal: motor.CharacterUp
+                ) * _requestedMovement.magnitude;
+
+                //current velocity on movement plane
+                var currentPlanarVelocity = Vector3.ProjectOnPlane
+                (
+                    vector: currentVelocity,
+                    planeNormal: motor.CharacterUp
+                );
+
+                //calculate movement
+                var movementForce = planarMovement * airAcceleration * deltaTime;
+                //add it to the current planar velocity for target velocity
+                var targetPlanarVelocity = currentPlanarVelocity + movementForce;
+                //limit target velocity to air speed
+                targetPlanarVelocity = Vector3.ClampMagnitude(targetPlanarVelocity, airSpeed);
+                //stear towards current velocity
+                currentVelocity += targetPlanarVelocity - currentPlanarVelocity;
+            }
             //gravity
-            currentVelocity += motor.CharacterUp * gravity * deltaTime;
+            var effectiveGravity = gravity;
+            var verticalSpeed = Vector3.Dot(currentVelocity, motor.CharacterUp);
+            if (_requestedSustainedJump && verticalSpeed > 0f)
+                effectiveGravity *= jumpSustainGravity;
+            currentVelocity += motor.CharacterUp * effectiveGravity * deltaTime;
         }
 
         if (_requestedJump)
