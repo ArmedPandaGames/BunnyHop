@@ -22,11 +22,11 @@ public class CameraSpring : MonoBehaviour
 
         Spring(ref _springPosition, ref _springVelocity, transform.position, halfLife, frequency, deltaTime);
 
-        var localSpringPosition = _springPosition - transform.position;
-        var springHeight = Vector3.Dot(localSpringPosition, up);
+        var relativeSpringPosition = _springPosition - transform.position;
+        var springHeight = Vector3.Dot(relativeSpringPosition, up);
 
         transform.localEulerAngles = new Vector3(-springHeight * angularDisplacement, 0f, 0f);
-        transform.localPosition = localSpringPosition * linearDisplacement;
+        transform.position += relativeSpringPosition * linearDisplacement;
     }
 
     private static void Spring(ref Vector3 current, ref Vector3 velocity, Vector3 target, float halfLife, float frequency, float timeStep)
