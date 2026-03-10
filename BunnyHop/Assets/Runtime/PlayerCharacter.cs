@@ -11,7 +11,13 @@ public enum CrouchInput
 
 public enum Stance
 {
-    Stand, Crouch
+    Stand, Crouch, Slide
+}
+
+public struct CharacterState
+{
+    public bool Grounded;
+    public Stance Stance;
 }
 public struct CharacterInput
 {
@@ -40,6 +46,10 @@ public class PlayerCharacter : MonoBehaviour, ICharacterController
     [SerializeField] private float jumpSustainGravity = 0.4f;
     [SerializeField] private float gravity = -90f;
     [Space]
+    [SerializeField] private float slideStartSpeed = 25f;
+    [SerializeField] private float slideEndSpeed = 15f; //if speed lower than this player will no longer slide
+    [SerializeField] private float slideFriction = 0.8f;
+    [Space]
     [SerializeField] private float standHeight = 2f;
     [SerializeField] private float crouchHeight = 1f;
     [SerializeField] private float crouchHeightResponse = 15f; //how quickly the character capsule changes height when crouching/uncrouching
@@ -47,7 +57,9 @@ public class PlayerCharacter : MonoBehaviour, ICharacterController
     [SerializeField] private float standCameraTargetHeight = 0.9f;
     [Range(0f, 1f)]
     [SerializeField] private float crouchCameraTargetHeight = 0.7f;
-    private Stance _stance;
+    private CharacterState _state;
+    private CharacterState _lastState;
+    private CharacterState _tempState;
     private Quaternion _requestedRotation;
     private Vector3 _requestedMovement;
     private bool _requestedJump;
@@ -57,7 +69,9 @@ public class PlayerCharacter : MonoBehaviour, ICharacterController
 
     public void Initialize()
     {
-        _stance = Stance.Stand;
+        _state.Stance = Stance.Stand;
+        _lastState = _state;
+
         _uncrouchOverlapResults = new Collider[8];
         motor.CharacterController = this;
 
@@ -77,12 +91,17 @@ public class PlayerCharacter : MonoBehaviour, ICharacterController
         _requestedSustainedJump = input.JumpSustain;
         _requestedCrouch = input.Crouch switch
         {
+            //toggle
+            /*
             CrouchInput.Toggle => !_requestedCrouch,
             CrouchInput.None => _requestedCrouch,
             _ => _requestedCrouch
+            */
             //if want hold instead of toggle
-            //CrouchInput.Crouch => true,
-            //CrouchInput.Uncrouch => false,
+            CrouchInput.Toggle => true,
+            CrouchInput.None => false,
+            _ => _requestedCrouch
+
         };
     }
 
@@ -91,7 +110,7 @@ public class PlayerCharacter : MonoBehaviour, ICharacterController
         var currentHeight = motor.Capsule.height;
         var normalizedHeight = currentHeight / standHeight;
         var cameraTargetHeight = currentHeight * (
-            _stance is Stance.Stand ? standCameraTargetHeight : crouchCameraTargetHeight
+            _state.Stance is Stance.Stand ? standCameraTargetHeight : crouchCameraTargetHeight
         );
         var rootTargetScale = new Vector3(1f, normalizedHeight, 1f);
         cameraTarget.localPosition = Vector3.Lerp(
@@ -115,16 +134,49 @@ public class PlayerCharacter : MonoBehaviour, ICharacterController
                 direction: _requestedMovement,
                 surfaceNormal: motor.GroundingStatus.GroundNormal
             ) * _requestedMovement.magnitude;
-            //calculate target velocity based on move speed, then smooth towards it based on acceleration speed
-            var speed = _stance is Stance.Stand ? walkSpeed : crouchSpeed;
-            var response = _stance is Stance.Stand ? walkResponse : crouchResponse;
-            // and move along the ground in that direction
-            var targetVelocity = groundedMovement * speed;
-            currentVelocity = Vector3.Lerp(
-                a: currentVelocity,
-                b: targetVelocity,
-                t: 1f - Mathf.Exp(-response * deltaTime)
-                );
+
+            //start sliding
+            {
+                var moving = groundedMovement.sqrMagnitude > 0f;
+                var crouching = _state.Stance is Stance.Crouch;
+                var wasStanding = _lastState.Stance is Stance.Stand;
+                var wasInAir = !_lastState.Grounded;
+                if (moving && crouching && (wasStanding || wasInAir))
+                {
+                    _state.Stance = Stance.Slide;
+                    var slideSpeed = Mathf.Max(slideStartSpeed, currentVelocity.magnitude);
+                    currentVelocity = motor.GetDirectionTangentToSurface
+                    (
+                        direction: currentVelocity,
+                        surfaceNormal: motor.GroundingStatus.GroundNormal
+                    ) * slideSpeed;
+                }
+            }
+            //Move
+            if (_state.Stance is Stance.Stand or Stance.Crouch)
+            {
+                //calculate target velocity based on move speed, then smooth towards it based on acceleration speed
+                var speed = _state.Stance is Stance.Stand ? walkSpeed : crouchSpeed;
+                var response = _state.Stance is Stance.Stand ? walkResponse : crouchResponse;
+                // and move along the ground in that direction
+                var targetVelocity = groundedMovement * speed;
+                currentVelocity = Vector3.Lerp(
+                    a: currentVelocity,
+                    b: targetVelocity,
+                    t: 1f - Mathf.Exp(-response * deltaTime)
+                    );
+
+            }
+            else //continue sliding
+            {
+                //friction
+                currentVelocity -= currentVelocity * (slideFriction * Time.deltaTime);
+                //stop
+                if (currentVelocity.magnitude < slideEndSpeed)
+                {
+                    _state.Stance = Stance.Crouch;
+                }
+            }
         }
         else //else in the air
         {
@@ -164,6 +216,7 @@ public class PlayerCharacter : MonoBehaviour, ICharacterController
         if (_requestedJump)
         {
             _requestedJump = false;
+            _requestedCrouch = false;
             // unstick from ground before applying jump
             motor.ForceUnground(time: 0f);
             //set min vertical speed to the jump speed
@@ -192,23 +245,27 @@ public class PlayerCharacter : MonoBehaviour, ICharacterController
     public void BeforeCharacterUpdate(float deltaTime)
     {
         // Implement any logic that needs to happen before the character update here
-
+        _tempState = _state;
         //crouch
-        if (_requestedCrouch && _stance is Stance.Stand)
+        if (_requestedCrouch && _state.Stance is Stance.Stand)
         {
-            _stance = Stance.Crouch;
+            _state.Stance = Stance.Crouch;
             motor.SetCapsuleDimensions(height: crouchHeight, radius: motor.Capsule.radius, yOffset: crouchHeight * 0.5f);
         }
     }
     public void PostGroundingUpdate(float deltaTime)
     {
         // Implement any logic that needs to happen after grounding updates here
+        if (!motor.GroundingStatus.IsStableOnGround && _state.Stance is Stance.Slide)
+        {
+            _state.Stance = Stance.Crouch;
+        }
     }
     public void AfterCharacterUpdate(float deltaTime)
     {
         // Implement any logic that needs to happen after the character update here
         //uncrouch
-        if (!_requestedCrouch && _stance is not Stance.Stand)
+        if (!_requestedCrouch && _state.Stance is not Stance.Stand)
         {
             // tentatively stand up the character capsule
             motor.SetCapsuleDimensions(height: standHeight, radius: motor.Capsule.radius, yOffset: standHeight * 0.5f);
@@ -224,9 +281,12 @@ public class PlayerCharacter : MonoBehaviour, ICharacterController
             else
             {
                 //if there was no collision, finalize standing up
-                _stance = Stance.Stand;
+                _state.Stance = Stance.Stand;
             }
         }
+        //update state to reflect relevant motor properties
+        _state.Grounded = motor.GroundingStatus.IsStableOnGround;
+        _lastState = _tempState;
     }
 
     public void OnGroundHit(Collider hitCollider, Vector3 hitNormal, Vector3 hitPoint, ref HitStabilityReport hitStabilityReport)
