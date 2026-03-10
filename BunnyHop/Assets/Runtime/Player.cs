@@ -12,6 +12,7 @@ public class Player : MonoBehaviour
     private PlayerCamera playerCamera;
     [Space]
     [SerializeField] private CameraSpring cameraSpring;
+    [SerializeField] private CameraLean cameraLean;
     private PlayerInputActions _inputActions;
 
     private void Start()
@@ -23,6 +24,7 @@ public class Player : MonoBehaviour
         playerCamera.Initialize(playerCharacter.GetCameraTarget());
 
         cameraSpring.Initialize();
+        cameraLean.Initialize();
     }
 
     void OnDestroy()
@@ -67,9 +69,10 @@ public class Player : MonoBehaviour
     {
         var deltaTime = Time.deltaTime;
         var cameraTarget = playerCharacter.GetCameraTarget();
-
+        var state = playerCharacter.GetState();
         playerCamera.UpdatePosition(cameraTarget);
         cameraSpring.UpdateSpring(deltaTime, cameraTarget.up);
+        cameraLean.UpdateLean(deltaTime, state.Stance is Stance.Slide, state.Acceleration, cameraTarget.up);
     }
 
     public void Teleport(Vector3 position)
