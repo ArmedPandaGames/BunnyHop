@@ -18,7 +18,13 @@ public class PlayerCamera : MonoBehaviour
     public void UpdateRotation(CameraInput input)
     {
         // Implement your camera rotation logic here based on the input
+
         _eulerAngles += new Vector3(-input.Look.y, input.Look.x) * sensitivity;
+
+        // Clamp pitch (x rotation) so the camera can't flip upside down
+        // (prevents spinning all the way around on the X axis)
+        _eulerAngles.x = Mathf.Clamp(_eulerAngles.x, -89f, 89f);
+
         transform.eulerAngles = _eulerAngles;
     }
 

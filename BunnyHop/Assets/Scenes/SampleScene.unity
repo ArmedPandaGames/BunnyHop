@@ -373,7 +373,7 @@ Transform:
   m_GameObject: {fileID: 322631037}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 16.4, y: 8.2, z: 47.3}
+  m_LocalPosition: {x: 17.6, y: 7.4, z: 45.3}
   m_LocalScale: {x: 5, y: 5, z: 5}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -838,7 +838,7 @@ Transform:
   m_GameObject: {fileID: 485836334}
   serializedVersion: 2
   m_LocalRotation: {x: -0.17018475, y: 0.81763977, z: 0.30326566, w: 0.45883805}
-  m_LocalPosition: {x: 37.8, y: 5.66, z: 46.1}
+  m_LocalPosition: {x: 37.8, y: 4.7, z: 46.1}
   m_LocalScale: {x: 20, y: 0.5, z: 10.29}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -943,7 +943,7 @@ Transform:
   m_GameObject: {fileID: 553841547}
   serializedVersion: 2
   m_LocalRotation: {x: 0.1365599, y: 0.8330992, z: -0.23652872, w: 0.48098996}
-  m_LocalPosition: {x: 11.8, y: 5.66, z: 27.06}
+  m_LocalPosition: {x: 11.8, y: 4.5, z: 27.06}
   m_LocalScale: {x: 20, y: 0.5, z: 10.29}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -1197,14 +1197,14 @@ MonoBehaviour:
   MinRequiredStepDepth: 0.1
   LedgeAndDenivelationHandling: 1
   MaxStableDistanceFromLedge: 0.5
-  MaxVelocityForLedgeSnap: 0
+  MaxVelocityForLedgeSnap: 100
   MaxStableDenivelationAngle: 180
   InteractiveRigidbodyHandling: 1
   RigidbodyInteractionType: 0
   SimulatedCharacterMass: 1
   PreserveAttachedRigidbodyMomentum: 1
   HasPlanarConstraint: 0
-  PlanarConstraintAxis: {x: 0, y: 0, z: 1}
+  PlanarConstraintAxis: {x: 0, y: 0, z: 0}
   MaxMovementIterations: 5
   MaxDecollisionIterations: 1
   CheckMovementInitialOverlaps: 1
@@ -1332,7 +1332,7 @@ Transform:
   m_GameObject: {fileID: 1058119167}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 25.1, y: 11, z: 56.9}
+  m_LocalPosition: {x: 21.4, y: 8.4, z: 53.2}
   m_LocalScale: {x: 5, y: 5, z: 5}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -1981,7 +1981,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f22b3913c4232684b81e0d8873975c1f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  sensitivity: 0.2
+  sensitivity: 0.05
 --- !u!4 &1555418964
 Transform:
   m_ObjectHideFlags: 0
@@ -2378,7 +2378,7 @@ Transform:
   m_GameObject: {fileID: 2036311201}
   serializedVersion: 2
   m_LocalRotation: {x: -0.1266615, y: 0.84235424, z: 0.22570811, w: 0.47270715}
-  m_LocalPosition: {x: 25.23, y: 5.66, z: 26.64}
+  m_LocalPosition: {x: 25.23, y: 4.5, z: 26.64}
   m_LocalScale: {x: 20, y: 0.5, z: 10.29}
   m_ConstrainProportionsScale: 0
   m_Children: []
